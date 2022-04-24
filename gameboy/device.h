@@ -10,13 +10,23 @@
 class device
 {
 private:
-	memory m_memory{};
-	processor m_processor{};
-	graphics m_graphics{};
+	std::shared_ptr<memory> m_memory{};
+	std::shared_ptr<processor> m_processor{};
+	std::shared_ptr<graphics> m_graphics{};
 	input m_input{};
 	
-	cartridge m_cartridge;
+	std::vector<uint8_t> m_boot_rom{};
+	std::shared_ptr<cartridge> m_cartridge{};
 
+	bool m_booted{};
+	bool m_running{};
+	
 public:
-	device(const cartridge& cartridge);
+	device(const std::vector<uint8_t>& boot_rom, const cartridge& cart, std::shared_ptr<olc::PixelGameEngine> renderer);
+
+	bool boot();
+
+	void execute();
+
+	std::shared_ptr<graphics> graphics_module();
 };

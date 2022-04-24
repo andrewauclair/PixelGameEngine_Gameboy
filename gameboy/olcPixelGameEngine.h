@@ -907,7 +907,7 @@ namespace olc
 	// O------------------------------------------------------------------------------O
 	// | olc::PixelGameEngine - The main BASE class for your application              |
 	// O------------------------------------------------------------------------------O
-	class PixelGameEngine
+	class PixelGameEngine : public std::enable_shared_from_this<PixelGameEngine>
 	{
 	public:
 		PixelGameEngine();

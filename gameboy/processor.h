@@ -2,6 +2,8 @@
 
 #include "data.h"
 
+#include <memory>
+
 class memory;
 class graphics;
 
@@ -15,8 +17,8 @@ public:
 	static bool s_stepOver;
 
 private:
-	memory* m_memory{};
-	graphics* m_graphics{};
+	std::shared_ptr<memory> m_memory{};
+	std::shared_ptr<graphics> m_graphics{};
 
 	cpu_registers m_registers{};
 
@@ -34,6 +36,8 @@ private:
 	unsigned short m_timer{};
 
 public:
+	processor(std::shared_ptr<memory> memory, std::shared_ptr<graphics> graphics);
+
 	bool execute_instruction();
 
 private:

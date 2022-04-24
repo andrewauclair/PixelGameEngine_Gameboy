@@ -11,9 +11,83 @@ bool processor::s_breakOnRET = false;
 bool processor::s_breakOnJR = false;
 bool processor::s_stepOver = false;
 
+processor::processor(std::shared_ptr<memory> memory, std::shared_ptr<graphics> graphics)
+	: m_memory{ memory },
+	  m_graphics{ graphics }
+{
+}
+
 bool processor::execute_instruction()
 {
-	return false;
+	bool ret = true;
+	unsigned short opcode = 0;
+	static unsigned int lastClockCycles = m_cpu_clocks;
+	lastClockCycles = m_cpu_clocks;
+
+	if (m_registers.pc == 0x1a40)// || m_registers.pc == 0xc2d5 || m_registers.pc == 0xc2e1)
+	{
+		//s_debugRegisters = true;
+	}
+
+	check_interrupts();
+
+	if (!m_halt)
+	{
+		opcode = m_memory->read_byte(m_registers.pc++);
+
+		execute_cycle();
+
+		const cpu_instruction& instruction = g_gbInstructions[opcode];
+
+		unsigned short oneArg = m_memory->read_byte(m_registers.pc);
+		unsigned short twoArg = m_memory->read_short(m_registers.pc);
+
+		ret = execute_opcode(opcode);
+
+		if (ret)
+		{
+			/*if (s_debugRegisters)
+			{
+				if (opcode == 0xCB)
+				{
+					std::cout << "Executing ext opcode 0xCB 0x" << oneArg << " " << g_gbExtInstructions[oneArg].instruction << std::endl;
+				}
+				else
+				{
+					std::cout << "Executing opcode 0x" << std::hex << opcode << " ";
+
+					char buffer[50];
+					if (instruction.length == 1)
+					{
+						sprintf_s(buffer, instruction.instruction, oneArg);
+					}
+					else if (instruction.length == 2)
+					{
+						sprintf_s(buffer, instruction.instruction, twoArg);
+					}
+					else
+					{
+						sprintf_s(buffer, "%s", instruction.instruction);
+					}
+
+					std::cout << buffer << std::endl;
+				}
+			}*/
+		}
+	}
+	else
+	{
+		execute_cycle();
+	}
+
+	int clockChange = m_cpu_clocks - lastClockCycles;
+
+	if (s_debugRegisters)
+	{
+		log_registers(m_registers);
+	}
+
+	return ret;
 }
 
 void processor::execute_cycle()

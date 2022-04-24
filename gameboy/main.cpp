@@ -7,11 +7,11 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	application app{ std::string{ argv[1] }, std::string{ argv[2] } };
+	auto app{ std::make_shared<application>(std::string{ argv[1] }, std::string{ argv[2] }) };
 
-	if (app.Construct(160, 144, 4, 4, false, true))
+	if (app->Construct(160, 144, 4, 4, false, true))
 	{
-		app.Start();
+		app->Start();
 	}
 
 	return 0;
