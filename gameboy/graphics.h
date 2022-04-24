@@ -2,5 +2,8 @@
 
 class graphics
 {
+private:
 
+public:
+	void update(int a);
 };

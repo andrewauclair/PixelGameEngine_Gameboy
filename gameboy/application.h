@@ -1,12 +1,16 @@
 #pragma once
 
-#define OLC_PGE_APPLICATION
 #include "olcPixelGameEngine.h"
+
+#include "device.h"
 
 class application : public olc::PixelGameEngine
 {
+private:
+	std::unique_ptr<device> m_device{};
+
 public:
-	application();
+	application(const std::string_view boot_bin, const std::string_view cart);
 
 	bool OnUserCreate() override;
 

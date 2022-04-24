@@ -5,6 +5,7 @@
 #include "graphics.h"
 #include "input.h"
 #include "audio.h"
+#include "cartridge.h"
 
 class device
 {
@@ -14,7 +15,8 @@ private:
 	graphics m_graphics{};
 	input m_input{};
 	
+	cartridge m_cartridge;
 
 public:
-
+	device(const cartridge& cartridge);
 };
