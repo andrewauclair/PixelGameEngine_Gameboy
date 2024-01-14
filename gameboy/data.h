@@ -117,61 +117,61 @@ struct cpu_registers
 		{
 			union
 			{
-				unsigned char f;
+				uint8_t f;
 				struct
 				{
-					unsigned char : 4;
-					unsigned char c_f : 1;
-					unsigned char h_f : 1;
-					unsigned char n_f : 1;
-					unsigned char z_f : 1;
+					uint8_t : 4;
+					uint8_t c_f : 1;
+					uint8_t h_f : 1;
+					uint8_t n_f : 1;
+					uint8_t z_f : 1;
 				};
 			};
-			unsigned char a;
+			uint8_t a;
 		};
-		unsigned short af;
+		uint16_t af;
 	};
 
 	union
 	{
 		struct
 		{
-			unsigned char c;
-			unsigned char b;
+			uint8_t c;
+			uint8_t b;
 		};
-		unsigned short bc;
+		uint16_t bc;
 	};
 
 	union
 	{
 		struct
 		{
-			unsigned char e;
-			unsigned char d;
+			uint8_t e;
+			uint8_t d;
 		};
-		unsigned short de;
+		uint16_t de;
 	};
 
 	union
 	{
 		struct
 		{
-			unsigned char l;
-			unsigned char h;
+			uint8_t l;
+			uint8_t h;
 		};
-		unsigned short hl;
+		uint16_t hl;
 	};
 
-	unsigned short sp;
-	unsigned short pc;
+	uint16_t sp;
+	uint16_t pc;
 };
 
 struct cpu_instruction
 {
-	unsigned char opcode;
+	uint8_t opcode;
 	std::string_view instruction;
-	unsigned char length;
-	unsigned char clocks;
+	unsigned int length;
+	unsigned int clocks;
 };
 
 constexpr cpu_instruction g_gbInstructions[256] =

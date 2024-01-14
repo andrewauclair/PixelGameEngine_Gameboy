@@ -12,7 +12,9 @@ constexpr int SCREEN_HEIGHT{ 160 };
 class graphics
 {
 private:
-	olc::Pixel m_screen[SCREEN_WIDTH][SCREEN_HEIGHT];
+	olc::Pixel m_screen[SCREEN_WIDTH][SCREEN_HEIGHT]{};
+
+	std::array<uint8_t, 8192> m_bank_0{};
 
 	std::shared_ptr<memory> m_memory{};
 	std::shared_ptr<olc::PixelGameEngine> m_renderer{};
@@ -32,11 +34,13 @@ public:
 
 	void update(int clock_cycles);
 
-	unsigned char read_byte(unsigned short addr);
-	void write_byte(unsigned short addr, unsigned char val);
+	void turn_off_LCD() {} // TODO implement this
 
-	unsigned char read_register(unsigned short reg);
-	void write_register(unsigned short reg, unsigned char val);
+	unsigned char read_byte(uint16_t address);
+	void write_byte(uint16_t address, uint8_t value);
+
+	unsigned char read_register(uint16_t reg);
+	void write_register(uint16_t reg, uint8_t value);
 
 	void render();
 	void render_map();

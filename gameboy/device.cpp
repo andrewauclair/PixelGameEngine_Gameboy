@@ -7,6 +7,11 @@ device::device(const std::vector<uint8_t>& boot_rom, const cartridge& cart, std:
 {
 	m_graphics = std::make_shared<graphics>(m_memory, renderer);
 	m_processor = std::make_shared<processor>(m_memory, m_graphics);
+	m_joypad = std::make_shared<joypad>(m_memory);
+	
+	m_memory->set_processor(m_processor);
+	m_memory->set_graphics(m_graphics);
+	m_memory->set_joypad(m_joypad);
 }
 
 bool device::boot()

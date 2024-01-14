@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 
 bool processor::s_debugRegisters = false;
 bool processor::s_breakOnCALL = false;
@@ -11,16 +12,35 @@ bool processor::s_breakOnRET = false;
 bool processor::s_breakOnJR = false;
 bool processor::s_stepOver = false;
 
+unsigned short processor::m_clocks_timer = 0;
+unsigned short processor::m_timer = 1024;
+unsigned short processor::m_timer_cycles_required = 1024;
+
+//std::ofstream log_file{ "execution.txt" };
+
 processor::processor(std::shared_ptr<memory> memory, std::shared_ptr<graphics> graphics)
 	: m_memory{ memory },
 	  m_graphics{ graphics }
 {
+	m_clocks_timer = 0;
+	m_timer = 1024;
+	m_timer_cycles_required = 1024;
+}
+
+void processor::boot()
+{
+	// currently we're going to emulate the original DMG gameboy device
+	/*m_registers.af = 0x01b0;
+	m_registers.bc = 0x0013;
+	m_registers.de = 0x00d8;
+	m_registers.hl = 0x014d;
+	m_registers.sp = 0xfffe;
+	m_registers.pc = 0x0100;*/
 }
 
 bool processor::execute_instruction()
 {
 	bool ret = true;
-	unsigned short opcode = 0;
 	static unsigned int lastClockCycles = m_cpu_clocks;
 	lastClockCycles = m_cpu_clocks;
 
@@ -31,9 +51,23 @@ bool processor::execute_instruction()
 
 	check_interrupts();
 
+	static int line = 1;
+
 	if (!m_halt)
 	{
-		opcode = m_memory->read_byte(m_registers.pc++);
+		const uint8_t opcode = m_memory->read_byte(m_registers.pc);
+
+		//if (opcode == 0xf0 &&
+		//	m_registers.af == 0x50 && m_registers.bc == 0x10c && m_registers.de == 0x6402 &&
+		//	m_registers.hl == 0xf && m_registers.sp == 0xfffe && m_registers.pc == 0x64)
+		//{
+		//	int a = 0;
+		//	//__debugbreak();
+		//}
+
+		line += 3;
+
+		m_registers.pc++;
 
 		execute_cycle();
 
@@ -42,10 +76,34 @@ bool processor::execute_instruction()
 		unsigned short oneArg = m_memory->read_byte(m_registers.pc);
 		unsigned short twoArg = m_memory->read_short(m_registers.pc);
 
-		ret = execute_opcode(opcode);
+		unsigned int clocks{ execute_opcode(opcode) };
 
-		if (ret)
+		if (clocks != 0)
 		{
+			//auto cycles_to_skip = (clocks);// / 4;
+
+			//for (int i = 0; i < cycles_to_skip; i++)
+			//{
+			//	execute_cycle();
+			//}
+
+			/*log_file << "0x" << std::hex << static_cast<unsigned short>(opcode) << " ";
+
+			if (instruction.length == 1)
+			{
+				log_file << oneArg;
+			}
+			else if (instruction.length == 2)
+			{
+				log_file << twoArg;
+			}
+			else
+			{
+				log_file << instruction.instruction;
+			}
+			log_file << '\n';
+			log_registers(m_registers);*/
+
 			/*if (s_debugRegisters)
 			{
 				if (opcode == 0xCB)
@@ -78,6 +136,9 @@ bool processor::execute_instruction()
 	else
 	{
 		execute_cycle();
+		execute_cycle();
+		execute_cycle();
+		execute_cycle();
 	}
 
 	int clockChange = m_cpu_clocks - lastClockCycles;
@@ -98,10 +159,14 @@ void processor::execute_cycle()
 	update_timers(4);
 }
 
-bool processor::execute_opcode(unsigned char opcode)
+unsigned int processor::execute_opcode(uint8_t opcode)
 {
 	const cpu_instruction& instr = g_gbInstructions[opcode];
-	bool retval = true;
+
+	// execute cycle for fetching instruction
+	//execute_cycle();
+
+	unsigned int clocks{ instr.clocks };
 
 	switch (opcode)
 	{
@@ -179,7 +244,7 @@ bool processor::execute_opcode(unsigned char opcode)
 	case 0x1D: dec_8bit(m_registers.e); break;
 	case 0x1E: load_8bit(m_registers.e); break;
 	case 0x1F: rotate_right(m_registers.a, false); m_registers.z_f = 0; break;
-	case 0x20: jump_8bit_flag(0x80, false); break;
+	case 0x20: clocks = jump_8bit_flag(0x80, false); break;
 	case 0x21: load_16bit(m_registers.hl); break;
 	case 0x22: m_memory->write_byte(m_registers.hl, m_registers.a); execute_cycle(); m_registers.hl++; break;
 	case 0x23: inc_16bit(m_registers.hl); break;
@@ -187,7 +252,7 @@ bool processor::execute_opcode(unsigned char opcode)
 	case 0x25: dec_8bit(m_registers.h); break;
 	case 0x26: load_8bit(m_registers.h); break;
 	case 0x27: daa(); break;
-	case 0x28: jump_8bit_flag(0x80, true); break;
+	case 0x28: clocks = jump_8bit_flag(0x80, true); break;
 	case 0x29: add_16bit(m_registers.hl, m_registers.hl); break;
 	case 0x2A: load_8bit_mem(m_registers.a, m_registers.hl); m_registers.hl++; break;
 	case 0x2B: dec_16bit(m_registers.hl); break;
@@ -195,7 +260,7 @@ bool processor::execute_opcode(unsigned char opcode)
 	case 0x2D: dec_8bit(m_registers.l); break;
 	case 0x2E: load_8bit(m_registers.l); break;
 	case 0x2F: m_registers.a = ~(m_registers.a); m_registers.n_f = 1; m_registers.h_f = 1; break;
-	case 0x30: jump_8bit_flag(0x10, false); break;
+	case 0x30: clocks = jump_8bit_flag(0x10, false); break;
 	case 0x31: load_16bit(m_registers.sp); break;
 	case 0x32: m_memory->write_byte(m_registers.hl, m_registers.a); execute_cycle(); m_registers.hl--; break;
 	case 0x33: inc_16bit(m_registers.sp); break;
@@ -209,7 +274,7 @@ bool processor::execute_opcode(unsigned char opcode)
 		execute_cycle();
 	}break;
 	case 0x37: m_registers.n_f = 0; m_registers.h_f = 0; m_registers.c_f = 1; break;
-	case 0x38: jump_8bit_flag(0x10, true); break;
+	case 0x38: clocks = jump_8bit_flag(0x10, true); break;
 	case 0x39: add_16bit(m_registers.hl, m_registers.sp); break;
 	case 0x3A: load_8bit_mem(m_registers.a, m_registers.hl); m_registers.hl--; break;
 	case 0x3B: dec_16bit(m_registers.sp); break;
@@ -345,35 +410,35 @@ bool processor::execute_opcode(unsigned char opcode)
 	case 0xBD: cp_8bit(m_registers.a, m_registers.l, false); break;
 	case 0xBE: cp_8bit_mem(m_registers.a, m_registers.hl); break;
 	case 0xBF: cp_8bit(m_registers.a, m_registers.a, false); break;
-	case 0xC0: ret_flag(0x80, false); break;
+	case 0xC0: clocks = ret_flag(0x80, false); break;
 	case 0xC1: pop_stack(m_registers.bc); break;
-	case 0xC2: jump_16bit_flag(0x80, false); break;
+	case 0xC2: clocks = jump_16bit_flag(0x80, false); break;
 	case 0xC3: jump_16bit(0, true); break;
-	case 0xC4: call_flag(0x80, false); break;
-	case 0xC5: push_stack(m_registers.bc); execute_cycle(); break;
+	case 0xC4: clocks = call_flag(0x80, false); break;
+	case 0xC5: push_stack(m_registers.bc); break;
 	case 0xC6: add_8bit(m_registers.a, 0, true, false); break;
 	case 0xC7: rst(0x00); break;
-	case 0xC8: ret_flag(0x80, true); break;
+	case 0xC8: clocks = ret_flag(0x80, true); break;
 	case 0xC9: ret(); break;
-	case 0xCA: jump_16bit_flag(0x80, true); break;
-	case 0xCB: retval = execute_extension_opcode(); break;
-	case 0xCC: call_flag(0x80, true); break;
+	case 0xCA: clocks = jump_16bit_flag(0x80, true); break;
+	case 0xCB: execute_extension_opcode(); break;
+	case 0xCC: clocks = call_flag(0x80, true); break;
 	case 0xCD: call_16bit(); break;
 	case 0xCE: add_8bit(m_registers.a, 0, true, true); break;
 	case 0xCF: rst(0x08); break;
-	case 0xD0: ret_flag(0x10, false); break;
+	case 0xD0: clocks = ret_flag(0x10, false); break;
 	case 0xD1: pop_stack(m_registers.de); break;
-	case 0xD2: jump_16bit_flag(0x10, false); break;
+	case 0xD2: clocks = jump_16bit_flag(0x10, false); break;
 		// 0xD3: No instruction
-	case 0xD4: call_flag(0x10, false); break;
-	case 0xD5: push_stack(m_registers.de); execute_cycle(); break;
+	case 0xD4: clocks = call_flag(0x10, false); break;
+	case 0xD5: push_stack(m_registers.de); break;
 	case 0xD6: sub_8bit(m_registers.a, 0, true, false); break;
 	case 0xD7: rst(0x10); break;
-	case 0xD8: ret_flag(0x10, true); break;
+	case 0xD8: clocks = ret_flag(0x10, true); break;
 	case 0xD9: reti(); break;
-	case 0xDA: jump_16bit_flag(0x10, true); break;
+	case 0xDA: clocks = jump_16bit_flag(0x10, true); break;
 		// 0xDB: No instruction
-	case 0xDC: call_flag(0x10, true); break;
+	case 0xDC: clocks = call_flag(0x10, true); break;
 		// 0xDD: No instruction
 	case 0xDE: sub_8bit(m_registers.a, 0, true, true); break;
 	case 0xDF: rst(0x18); break;
@@ -392,7 +457,7 @@ bool processor::execute_opcode(unsigned char opcode)
 	}break;
 	// 0xE3: No instruction
 	// 0xE4: No instruction
-	case 0xE5: push_stack(m_registers.hl); execute_cycle(); break;
+	case 0xE5: push_stack(m_registers.hl); break;
 	case 0xE6: and_8bit(m_registers.a, 0, true); break;
 	case 0xE7: rst(0x20); break;
 	case 0xE8:
@@ -435,7 +500,7 @@ bool processor::execute_opcode(unsigned char opcode)
 	case 0xF2: m_registers.a = m_memory->read_byte(0xFF00 | m_registers.c); execute_cycle(); break;
 	case 0xF3: di(); break;
 		// 0xF4: No instruction
-	case 0xF5: push_stack(m_registers.af); execute_cycle(); break;
+	case 0xF5: push_stack(m_registers.af); break;
 	case 0xF6: or_8bit(m_registers.a, 0, true); break;
 	case 0xF7: rst(0x30); break;
 	case 0xF8:
@@ -483,63 +548,122 @@ bool processor::execute_opcode(unsigned char opcode)
 		std::cout << buffer << std::endl;
 
 		s_debugRegisters = true;
-		retval = false;
 	}break;
 	}
 
 	// force f to always be F0 like
 	m_registers.f &= 0xF0;
 
-	return retval;
+	return clocks;
 }
 
 void processor::log_registers(cpu_registers& regs)
 {
-	std::cout << std::hex << "		af=" << regs.af << " bc=" << regs.bc << " de=" << regs.de << std::endl;
-	std::cout << std::hex << "		hl=" << regs.hl << " sp=" << regs.sp << " pc=" << regs.pc << std::endl;
+	//log_file << std::hex << "		af=" << regs.af << " bc=" << regs.bc << " de=" << regs.de << '\n';
+	//log_file << std::hex << "		hl=" << regs.hl << " sp=" << regs.sp << " pc=" << regs.pc << '\n';
 }
 
 void processor::update_timers(unsigned int clocks)
 {
+	static bool update_time = true;
+
+	
+
 	uint8_t tima = m_memory->read_byte_from_raw_memory(0xff05);
-	uint8_t tma = m_memory->read_byte_from_raw_memory(0xff06);
-	uint8_t tac = m_memory->read_byte_from_raw_memory(0xff07);
+	
+	uint8_t tmc = m_memory->read_byte_from_raw_memory(0xff07);
 	uint8_t intr = m_memory->read_byte_from_raw_memory(0xff0f);
 
-	for (int i = 0; i < clocks; ++i)
+	const int before_count = m_clocks_timer % 256;
+
+	const bool bit_3_high_before = processor::m_clocks_timer & 0x8;
+	const bool bit_5_high_before = processor::m_clocks_timer & 0x20;
+	const bool bit_7_high_before = processor::m_clocks_timer & 0x80;
+	const bool bit_9_high_before = processor::m_clocks_timer & 0x200;
+
+	m_clocks_timer += clocks;
+
+	const bool bit_3_high_after = processor::m_clocks_timer & 0x8;
+	const bool bit_5_high_after = processor::m_clocks_timer & 0x20;
+	const bool bit_7_high_after = processor::m_clocks_timer & 0x80;
+	const bool bit_9_high_after = processor::m_clocks_timer & 0x200;
+
+	bool trigger = false;
+
+	if ((m_clocks_timer % 256) != before_count)
 	{
-		m_clocks_timer++;
-		m_memory->write_byte_to_raw_memory(0xff04, (m_clocks_timer & 0xff00) >> 8);
-		m_timer++;
-		unsigned short cycles = 0;
+		//m_clocks_timer = m_clocks_timer % 256;
+		// increment div
+		m_memory->write_byte_to_raw_memory(0xff04, m_memory->read_byte_from_raw_memory(0xff04) + 1);
 
-		if (tac & 0x4)
+		if (processor::m_timer_cycles_required == 16 && bit_3_high_before && !bit_3_high_after)
 		{
-			switch (tac & 0x3)
-			{
-			case 0: cycles = 1024; break;
-			case 1: cycles = 16; break;
-			case 2: cycles = 64; break;
-			case 3: cycles = 256; break;
-			};
+			trigger = true;
+		}
+		else if (processor::m_timer_cycles_required == 64 && bit_5_high_before && !bit_5_high_after)
+		{
+			trigger = true;
+		}
+		else if (processor::m_timer_cycles_required == 256 && bit_7_high_before && !bit_7_high_after)
+		{
+			trigger = true;
+		}
+		else if (processor::m_timer_cycles_required == 1024 && bit_9_high_before && !bit_9_high_after)
+		{
+			trigger = true;
+		}
+	}
+	if (!update_time)
+	{
+		return;
+	}
+	//for (unsigned int i = 0; i < clocks; ++i)
+	{
+//		if (tmc & 0x4) // clock enabled
+		{
+			m_timer -= clocks;
 
-			if (m_timer >= cycles)
+			if (m_timer <= 0)
 			{
-				m_timer -= cycles;
-				if (tima == 0xFF)
+				m_timer = m_timer_cycles_required;
+
+				if (tmc & 0x4) // clock enabled
 				{
-					tima = tma;
-					m_memory->request_interrupt(mask_int_timer);
-				}
-				else
-				{
-					tima++;
+					// about to overflow
+					if (tima == 0xFF)
+					{
+						memory::wrote_to_tima = false;
+
+						m_memory->write_byte_to_raw_memory(0xff05, 0);
+						update_time = false;
+						execute_cycle();
+						m_memory->request_interrupt(mask_int_timer);
+						execute_cycle();
+
+						if (!memory::wrote_to_tima)
+						{
+							uint8_t tma = m_memory->read_byte_from_raw_memory(0xff06);
+
+							m_memory->write_byte_to_raw_memory(0xff05, tma);
+							//m_memory->write_byte_to_raw_memory(0xff05, tma);
+							
+							//execute_cycle();
+							//scanf("f");
+							
+						}
+						memory::wrote_to_tima = false;
+						update_time = true;
+					}
+					else
+					{
+						m_memory->write_byte_to_raw_memory(0xff05, tima + 1);
+					}
 				}
 			}
 		}
 	}
 
-	m_memory->write_byte_to_raw_memory(0xff05, tima);
+	
 }
 
 void processor::check_interrupts()
@@ -558,30 +682,35 @@ void processor::check_interrupts()
 		{
 			m_ime = false;
 			m_memory->write_byte_to_raw_memory(io_int_flag, m_memory->read_byte_from_raw_memory(io_int_flag) & ~mask_int_vblank);
+			m_handling_interrupt = true;
 			rst(int_addr_vblank);
 		}
 		else if (int_fired & mask_int_lcd)
 		{
 			m_ime = false;
 			m_memory->write_byte_to_raw_memory(io_int_flag, m_memory->read_byte_from_raw_memory(io_int_flag) & ~mask_int_lcd);
+			m_handling_interrupt = true;
 			rst(int_addr_lcd);
 		}
 		else if (int_fired & mask_int_timer)
 		{
 			m_ime = false;
 			m_memory->write_byte_to_raw_memory(io_int_flag, m_memory->read_byte_from_raw_memory(io_int_flag) & ~mask_int_timer);
+			m_handling_interrupt = true;
 			rst(int_addr_timer);
 		}
 		else if (int_fired & mask_int_serial)
 		{
 			m_ime = false;
 			m_memory->write_byte_to_raw_memory(io_int_flag, m_memory->read_byte_from_raw_memory(io_int_flag) & ~mask_int_serial);
+			m_handling_interrupt = true;
 			rst(int_addr_serial);
 		}
 		else if (int_fired & mask_int_joypad)
 		{
 			m_ime = false;
 			m_memory->write_byte_to_raw_memory(io_int_flag, m_memory->read_byte_from_raw_memory(io_int_flag) & ~mask_int_joypad);
+			m_handling_interrupt = true;
 			rst(int_addr_joypad);
 		}
 	}
@@ -824,14 +953,21 @@ void processor::add_16bit(unsigned short& reg, unsigned short val)
 	execute_cycle();
 }
 
-void processor::jump_8bit_flag(int flag, bool on)
+unsigned int processor::jump_8bit_flag(int flag, bool on)
 {
 	char n = m_memory->read_byte(m_registers.pc++);
+	unsigned int clocks{ 8 };
 	execute_cycle();
 	bool jump = ((m_registers.f & flag) == flag) == on;
 	m_registers.pc = jump ? m_registers.pc + n : m_registers.pc;
-	if (jump) execute_cycle();
+	if (jump) {
+		clocks = 12;
+		execute_cycle();
+	}
+	
 	if (!jump && s_breakOnJR) s_debugRegisters = true;
+
+	return clocks;
 }
 
 void processor::jump_8bit()
@@ -842,12 +978,14 @@ void processor::jump_8bit()
 	execute_cycle();
 }
 
-void processor::jump_16bit_flag(int flag, bool on)
+unsigned int processor::jump_16bit_flag(int flag, bool on)
 {
 	unsigned char n1 = m_memory->read_byte(m_registers.pc++);
 	execute_cycle();
 	unsigned char n2 = m_memory->read_byte(m_registers.pc++);
 	execute_cycle();
+
+	unsigned int clocks{ 12 };
 
 	bool jump = ((m_registers.f & flag) == flag) == on;
 
@@ -855,11 +993,15 @@ void processor::jump_16bit_flag(int flag, bool on)
 	{
 		m_registers.pc = (n2 << 8) | n1;
 		execute_cycle();
+
+		clocks = 16;
 	}
 	else if (s_breakOnJR)
 	{
 		s_debugRegisters = true;
 	}
+
+	return clocks;
 }
 
 void processor::jump_16bit(unsigned short addr, bool immediate)
@@ -883,34 +1025,44 @@ void processor::call_16bit()
 		s_debugRegisters = true;
 	}
 	unsigned char n1 = m_memory->read_byte(m_registers.pc++);
-	execute_cycle();
+	execute_cycle(); // 8
 	unsigned char n2 = m_memory->read_byte(m_registers.pc++);
-	execute_cycle();
-	push_stack(m_registers.pc);
+	execute_cycle(); // 12
+	push_stack(m_registers.pc); // 16, 20, 24
 	m_registers.pc = (n2 << 8) | n1;
-	execute_cycle();
 }
 
-void processor::call_flag(int flag, bool on)
+unsigned int processor::call_flag(int flag, bool on)
 {
 	if (s_breakOnCALL)
 	{
 		s_debugRegisters = true;
 	}
 	unsigned char n1 = m_memory->read_byte(m_registers.pc++);
-	execute_cycle();
+	execute_cycle(); // 8
 	unsigned char n2 = m_memory->read_byte(m_registers.pc++);
-	execute_cycle();
+	execute_cycle(); // 12
+
+	unsigned int clocks{ 12 };
+
 	if (((m_registers.f & flag) == flag) == on)
 	{
-		push_stack(m_registers.pc);
+		push_stack(m_registers.pc); // 16, 20, 24
 		m_registers.pc = (n2 << 8) | n1;
-		execute_cycle();
+
+		clocks = 24;
 	}
+
+	return clocks;
 }
 
 void processor::ret()
 {
+	if (m_handling_interrupt)
+	{
+		m_handling_interrupt = false;
+		m_ime = true;
+	}
 	if (s_breakOnRET)
 	{
 		s_debugRegisters = true;
@@ -928,21 +1080,29 @@ void processor::reti()
 	ret();
 }
 
-void processor::ret_flag(int flag, bool on)
+unsigned int processor::ret_flag(int flag, bool on)
 {
+	unsigned int clocks{ 8 };
 	if (((m_registers.f & flag) == flag) == on)
 	{
 		ret();
+		clocks = 20;
 	}
 	execute_cycle();
+	return clocks;
+	
 }
 
 void processor::push_stack(unsigned short val)
 {
-	m_memory->write_byte(--m_registers.sp, (val & 0xFF00) >> 8);
+	execute_cycle(); // internal delay
+
+	m_memory->write_byte(m_registers.sp - 1, (val & 0xFF00) >> 8);
 	execute_cycle();
-	m_memory->write_byte(--m_registers.sp, val & 0x00FF);
+	m_memory->write_byte(m_registers.sp - 2, val & 0x00FF);
 	execute_cycle();
+
+	m_registers.sp -= 2;
 }
 
 void processor::pop_stack(unsigned short& reg)
@@ -957,7 +1117,6 @@ void processor::rst(unsigned char val)
 {
 	push_stack(m_registers.pc);
 	m_registers.pc = val;
-	execute_cycle();
 }
 
 void processor::di()

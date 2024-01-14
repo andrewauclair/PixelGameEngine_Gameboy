@@ -6,6 +6,7 @@
 #include "input.h"
 #include "audio.h"
 #include "cartridge.h"
+#include "joypad.h"
 
 class device
 {
@@ -13,6 +14,8 @@ private:
 	std::shared_ptr<memory> m_memory{};
 	std::shared_ptr<processor> m_processor{};
 	std::shared_ptr<graphics> m_graphics{};
+	std::shared_ptr<joypad> m_joypad{};
+
 	input m_input{};
 	
 	std::vector<uint8_t> m_boot_rom{};

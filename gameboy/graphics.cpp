@@ -3,7 +3,8 @@
 
 graphics::graphics(std::shared_ptr<memory> memory, std::shared_ptr<olc::PixelGameEngine> renderer)
 	: m_memory{ memory },
-	  m_renderer{ renderer }
+	  m_renderer{ renderer },
+	m_mode{ 1 }
 {
 }
 
@@ -348,6 +349,49 @@ void graphics::render_sprites()
 	}
 }
 
+unsigned char graphics::read_byte(uint16_t address)
+{
+	return m_bank_0[address - 0x8000];
+}
+
+void graphics::write_byte(uint16_t address, uint8_t value)
+{
+	m_bank_0[address - 0x8000] = value;
+	m_memory->write_byte_to_raw_memory(address, value);
+}
+
+uint8_t graphics::read_register(uint16_t reg)
+{
+	switch (reg)
+	{
+	case io_lcd_bgp: return m_memory->read_byte_from_raw_memory(io_lcd_bgp);
+	case io_lcd_obp0: return m_memory->read_byte_from_raw_memory(io_lcd_obp0);
+	case io_lcd_obp1: return m_memory->read_byte_from_raw_memory(io_lcd_obp1);
+	}
+	return 0;
+}
+
+void graphics::write_register(uint16_t reg, uint8_t value)
+{
+	switch (reg)
+	{
+	case io_lcd_bgp:
+	{
+		m_memory->write_byte_to_raw_memory(io_lcd_bgp, value);
+		break;
+	}
+	case io_lcd_obp0:
+	{
+		m_memory->write_byte_to_raw_memory(io_lcd_obp0, value);
+		break;
+	}
+	case io_lcd_obp1:
+	{
+		m_memory->write_byte_to_raw_memory(io_lcd_obp1, value);
+		break;
+	}
+	}
+}
 
 void graphics::render_window()
 {

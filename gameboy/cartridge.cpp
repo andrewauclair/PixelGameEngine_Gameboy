@@ -2,7 +2,8 @@
 
 cartridge::cartridge(const std::vector<uint8_t>& rom, unsigned int memory_bank_controller, unsigned int ram_banks, unsigned int ram_bank_size)
 	: m_memory_bank_controller{ memory_bank_controller },
-	m_rom{ rom }
+	m_rom{ rom },
+	m_current_bank_ROM{ 1 }
 {
 	m_ram.resize(ram_banks);
 
@@ -141,6 +142,7 @@ void cartridge::write_byte(uint16_t address, uint8_t value)
 			break;
 		}
 		}
+		break;
 	}
 	case 0x4000:
 	case 0x5000:

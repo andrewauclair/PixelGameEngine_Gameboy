@@ -3,9 +3,9 @@
 #include <fstream>
 #include <optional>
 
-std::vector<uint8_t> read_boot_rom(const std::string_view boot_bin)
+std::vector<uint8_t> read_boot_rom(const std::filesystem::path& boot_bin)
 {
-	std::ifstream file{ boot_bin.data(), std::ios::in | std::ios::binary | std::ios::ate };
+	std::ifstream file{ boot_bin, std::ios::in | std::ios::binary | std::ios::ate };
 
 	std::vector<char> data{};
 
@@ -28,13 +28,13 @@ std::vector<uint8_t> read_boot_rom(const std::string_view boot_bin)
 	return std::vector<uint8_t>{ data.begin(), data.end() };
 }
 
-std::optional<cartridge> load_cartridge(const std::string_view cartridge_path)
+std::optional<cartridge> load_cartridge(const std::filesystem::path& cartridge_path)
 {
-	std::ifstream file{ cartridge_path.data(), std::ios::in | std::ios::binary | std::ios::ate };
+	std::ifstream file{ cartridge_path, std::ios::in | std::ios::binary | std::ios::ate };
 
 	if (file.is_open())
 	{
-		std::cout << "Opened game cartridge for read" << std::endl;
+		std::cout << "Opened game cartridge for read: " << cartridge_path.filename() << std::endl;
 
 		std::vector<char> rom{};
 		unsigned int memory_bank_controller{};
@@ -143,13 +143,29 @@ std::optional<cartridge> load_cartridge(const std::string_view cartridge_path)
 	return {};
 }
 
-application::application(const std::string_view boot_bin, const std::string_view cart)
+application::application(const std::filesystem::path& boot_bin, const std::filesystem::path& carts)
 {
 	sAppName = "Gameboy Emulator";
 	
 	m_boot_rom = read_boot_rom(boot_bin);
 
-	m_game_cartridge = load_cartridge(cart);
+	if (std::filesystem::is_directory(carts))
+	{
+		for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(carts))
+		{
+			if (entry.path().extension() == ".gb")
+			{
+				std::cout << "adding available cart: " << entry.path() << '\n';
+				m_carts.push_back(entry.path());
+			}
+		}
+		m_game_cartridge = load_cartridge(m_carts[0]);
+	}
+	else
+	{
+		m_carts.push_back(carts);
+		m_game_cartridge = load_cartridge(m_carts[0]);
+	}
 }
 
 bool application::OnUserCreate()
@@ -173,11 +189,40 @@ bool application::OnUserCreate()
 
 bool application::OnUserUpdate(float elapsed_time)
 {
+	if (m_device == nullptr) // not ready yet
+	{
+		return true;
+	}
 	m_device->graphics_module()->start_new_frame();
 
 	while (!m_device->graphics_module()->is_frame_complete())
 	{
 		m_device->execute();
+	}
+
+	if (GetKey(olc::Key::SPACE).bPressed)
+	{
+		// reset
+		if (m_game_cartridge.has_value())
+		{
+			if (m_carts.size() > 1)
+			{
+				m_current_cart = (m_current_cart + 1) % m_carts.size();
+
+				m_game_cartridge = load_cartridge(m_carts[m_current_cart]);
+			}
+
+			m_device = std::make_unique<device>(m_boot_rom, m_game_cartridge.value(), shared_from_this());
+
+			if (m_device->boot())
+			{
+				std::cout << "Successfully booted the game cartridge" << std::endl;
+			}
+			else
+			{
+				std::cout << "Failed to boot the game cartridge" << std::endl;
+			}
+		}
 	}
 
 	return true;

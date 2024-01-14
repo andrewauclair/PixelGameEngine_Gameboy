@@ -31,17 +31,22 @@ private:
 	bool m_speed_switch{};
 
 	bool m_double_speed_mode{};
+	bool m_handling_interrupt = false;
 
-	unsigned short m_clocks_timer{};
-	unsigned short m_timer{};
+public:
+	static unsigned short m_clocks_timer;
+	static unsigned short m_timer;
+	static unsigned short m_timer_cycles_required;
 
 public:
 	processor(std::shared_ptr<memory> memory, std::shared_ptr<graphics> graphics);
 
+	void boot(); // nintendo screen is done, set registers to start values
+
 	bool execute_instruction();
 
-private:
-	bool execute_opcode(unsigned char opcode);
+//private:
+	unsigned int execute_opcode(uint8_t opcode);
 
 	void execute_cycle();
 
@@ -87,17 +92,17 @@ private:
 
 	void add_16bit(unsigned short& reg, unsigned short val);
 
-	void jump_8bit_flag(int flag, bool on);
+	unsigned int jump_8bit_flag(int flag, bool on);
 	void jump_8bit();
-	void jump_16bit_flag(int flag, bool on);
+	unsigned int jump_16bit_flag(int flag, bool on);
 	void jump_16bit(unsigned short addr, bool immediate);
 
 	void call_16bit();
-	void call_flag(int flag, bool on);
+	unsigned int call_flag(int flag, bool on);
 
 	void ret();
 	void reti();
-	void ret_flag(int flag, bool on);
+	unsigned int ret_flag(int flag, bool on);
 
 	void push_stack(unsigned short val);
 	void pop_stack(unsigned short& reg);
