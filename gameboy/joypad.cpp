@@ -1,6 +1,7 @@
 #include "joypad.h"
 
 #include "memory.h"
+#include "application.h"
 
 joypad::joypad(std::shared_ptr<memory> memory)
 	: m_memory{ memory }
@@ -91,4 +92,16 @@ void joypad::update()
 	//reg |= 0x30;
 	//cout << "0xFF00: " << std::hex << (unsigned int)reg << endl;
 	m_memory->write_byte_to_raw_memory(0xff00, reg);
+}
+
+void joypad::check_for_input(application& app)
+{
+	m_key_states[static_cast<int>(joypad_key::start)] = app.GetKey(olc::Key::Z).bPressed;
+	m_key_states[static_cast<int>(joypad_key::select)] = app.GetKey(olc::Key::X).bPressed;
+	m_key_states[static_cast<int>(joypad_key::a)] = app.GetKey(olc::Key::A).bPressed;
+	m_key_states[static_cast<int>(joypad_key::b)] = app.GetKey(olc::Key::B).bPressed;
+	m_key_states[static_cast<int>(joypad_key::down)] = app.GetKey(olc::Key::DOWN).bPressed;
+	m_key_states[static_cast<int>(joypad_key::up)] = app.GetKey(olc::Key::UP).bPressed;
+	m_key_states[static_cast<int>(joypad_key::left)] = app.GetKey(olc::Key::LEFT).bPressed;
+	m_key_states[static_cast<int>(joypad_key::right)] = app.GetKey(olc::Key::RIGHT).bPressed;
 }

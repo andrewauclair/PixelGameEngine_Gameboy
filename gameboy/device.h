@@ -32,4 +32,6 @@ public:
 	void execute();
 
 	std::shared_ptr<graphics> graphics_module();
+
+	joypad& get_joypad() { return *m_joypad.get(); }
 };

@@ -3,6 +3,7 @@
 #include <memory>
 
 class memory;
+class application;
 
 enum class joypad_key
 {
@@ -27,4 +28,6 @@ public:
 	joypad(std::shared_ptr<memory> memory);
 
 	void update();
+
+	void check_for_input(application& app);
 };

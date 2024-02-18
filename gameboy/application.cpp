@@ -195,6 +195,8 @@ bool application::OnUserUpdate(float elapsed_time)
 	}
 	m_device->graphics_module()->start_new_frame();
 
+	m_device->get_joypad().check_for_input(*this);
+
 	while (!m_device->graphics_module()->is_frame_complete())
 	{
 		m_device->execute();
@@ -225,5 +227,6 @@ bool application::OnUserUpdate(float elapsed_time)
 		}
 	}
 
+	
 	return true;
 }
